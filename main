@@ -1,0 +1,129 @@
+# استيراد المكتبات اللازمة
+import PyPDF2
+import os
+from tkinter import *
+from tkinter import filedialog, messagebox
+import arabic_reshaper
+from bidi.algorithm import get_display
+
+class PDFExtractor:
+    def __init__(self, root):
+        """
+        تهيئة واجهة المستخدم الرسومية
+        """
+        self.root = root
+        self.root.title("مستخرج النصوص من PDF")
+        self.root.geometry("600x400")
+        
+        # إعداد واجهة المستخدم
+        self.setup_gui()
+        
+        # متغير لتخزين مسار الملف المحدد
+        self.selected_file = None
+        
+    def setup_gui(self):
+        """
+        إعداد عناصر واجهة المستخدم
+        """
+        # زر اختيار الملف
+        self.select_btn = Button(
+            self.root,
+            text="اختيار ملف PDF",
+            command=self.select_file,
+            height=2,
+            width=20
+        )
+        self.select_btn.pack(pady=20)
+        
+        # مربع عرض مسار الملف
+        self.file_label = Label(
+            self.root,
+            text="لم يتم اختيار ملف",
+            wraplength=500
+        )
+        self.file_label.pack(pady=10)
+        
+        # زر استخراج النص
+        self.extract_btn = Button(
+            self.root,
+            text="استخراج النص",
+            command=self.extract_text,
+            height=2,
+            width=20,
+            state=DISABLED
+        )
+        self.extract_btn.pack(pady=20)
+        
+        # مربع النص المستخرج
+        self.text_area = Text(
+            self.root,
+            height=10,
+            width=50,
+            wrap=WORD
+        )
+        self.text_area.pack(pady=20)
+
+    def select_file(self):
+        """
+        فتح نافذة اختيار الملف وحفظ المسار
+        """
+        filetypes = [("PDF files", "*.pdf")]
+        self.selected_file = filedialog.askopenfilename(filetypes=filetypes)
+        
+        if self.selected_file:
+            self.file_label.config(text=self.selected_file)
+            self.extract_btn.config(state=NORMAL)
+        else:
+            self.file_label.config(text="لم يتم اختيار ملف")
+            self.extract_btn.config(state=DISABLED)
+
+    def extract_text(self):
+        """
+        استخراج النص من ملف PDF المحدد
+        """
+        try:
+            # فتح ملف PDF
+            with open(self.selected_file, 'rb') as file:
+                # إنشاء قارئ PDF
+                pdf_reader = PyPDF2.PdfReader(file)
+                
+                # تجهيز متغير لتخزين النص
+                extracted_text = ""
+                
+                # استخراج النص من كل صفحة
+                for page_num in range(len(pdf_reader.pages)):
+                    page = pdf_reader.pages[page_num]
+                    extracted_text += page.extract_text() + "\n"
+                    extracted_text += "-" * 50 + "\n"  # فاصل بين الصفحات
+                
+                # معالجة النص العربي للعرض الصحيح
+                reshaped_text = arabic_reshaper.reshape(extracted_text)
+                bidi_text = get_display(reshaped_text)
+                
+                # عرض النص في مربع النص
+                self.text_area.delete(1.0, END)
+                self.text_area.insert(1.0, bidi_text)
+                
+                # عرض رسالة نجاح
+                messagebox.showinfo(
+                    "نجاح",
+                    f"تم استخراج النص بنجاح من {len(pdf_reader.pages)} صفحة"
+                )
+                
+        except Exception as e:
+            # عرض رسالة خطأ في حالة حدوث مشكلة
+            messagebox.showerror(
+                "خطأ",
+                f"حدث خطأ أثناء استخراج النص: {str(e)}"
+            )
+
+def main():
+    """
+    الدالة الرئيسية لتشغيل البرنامج
+    """
+    root = Tk()
+    app = PDFExtractor(root)
+    root.mainloop()
+
+if __name__ == "__main__":
+    main()
